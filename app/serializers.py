@@ -1,19 +1,17 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from user.serializers import UserSerializer
-from .models import Restaurant, Menu, Vote
+from .models import Menu, Restaurant
 
 
 class CreateRestaurantSerializer(serializers.ModelSerializer):
 
     class Meta:
+        model = Restaurant
         fields = [
             'name',
             'address',
-
         ]
-        model = Restaurant
 
 
 class UploadMenuSerializer(serializers.ModelSerializer):
@@ -29,17 +27,20 @@ class UploadMenuSerializer(serializers.ModelSerializer):
         return menu
 
     class Meta:
+        model = Menu
         fields = [
             'restaurant',
             'menu',
         ]
-        model = Menu
 
 
 class RestaurantListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Restaurant
-        fields = '__all__'
+        fields = [
+            'name',
+            'address'
+        ]
 
 
 class MenuListSerializer(serializers.ModelSerializer):
@@ -58,7 +59,6 @@ class ResultMenuListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Menu
         fields = [
-            'id',
             'menu',
             'restaurant',
             'votes',
@@ -66,10 +66,6 @@ class ResultMenuListSerializer(serializers.ModelSerializer):
         ]
 
 
-class VoteCreateSerializer(serializers.ModelSerializer):
+class VoteCreateSerializer(serializers.Serializer):
+    menu_id = serializers.IntegerField()
     employee = serializers.PrimaryKeyRelatedField(read_only=True, default=serializers.CurrentUserDefault())
-    menu = serializers.PrimaryKeyRelatedField(queryset=Menu.objects.all())
-
-    class Meta:
-        model = Vote
-        fields = ['employee', 'menu']

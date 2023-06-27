@@ -32,7 +32,8 @@ class Menu(models.Model):
 
 class Vote(models.Model):
     employee = models.ForeignKey(User, on_delete=models.CASCADE)
-    menu = models.ForeignKey(Menu, on_delete=models.CASCADE)
+    menu = models.ForeignKey(Menu, on_delete=models.CASCADE, related_name="menus")
+    voted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.employee} voted for {self.menu}"
