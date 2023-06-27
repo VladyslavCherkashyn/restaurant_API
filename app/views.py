@@ -1,46 +1,89 @@
-from rest_framework import generics, status
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import F, Q
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework import mixins, status, viewsets
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .models import Restaurant, Menu, Employee, Vote
-from .serializers import RestaurantSerializer, MenuSerializer, EmployeeSerializer, VoteSerializer
-import datetime
+from .models import Restaurant, Menu, Vote
+from .serializers import (
+    CreateRestaurantSerializer,
+    UploadMenuSerializer,
+    RestaurantListSerializer,
+    MenuListSerializer,
+    ResultMenuListSerializer, VoteCreateSerializer,
+)
 
 
-class RestaurantListCreateView(generics.ListCreateAPIView):
+class RestaurantViewSet(viewsets.ModelViewSet):
     queryset = Restaurant.objects.all()
-    serializer_class = RestaurantSerializer
 
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return RestaurantListSerializer
+        return CreateRestaurantSerializer
 
 
-class EmployeeListCreateView(generics.ListCreateAPIView):
-    queryset = Employee.objects.all()
-    serializer_class = EmployeeSerializer
-
-
-class CurrentDayMenuView(generics.RetrieveAPIView):
+class MenuViewSet(viewsets.ModelViewSet):
     queryset = Menu.objects.all()
-    serializer_class = MenuSerializer
+    serializer_class = UploadMenuSerializer
+
+
+class CurrentDayMenuView(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    queryset = Menu.objects.all()
+    serializer_class = MenuListSerializer
 
     def get_object(self):
-        today = datetime.date.today()
-        return self.queryset.get(date=today)
+        today = timezone.now().date()
+        return get_object_or_404(self.queryset, date=today)
 
 
-class CurrentDayResultsView(generics.RetrieveAPIView):
+class CurrentDayResultsView(mixins.ListModelMixin, viewsets.GenericViewSet):
     queryset = Menu.objects.all()
-    serializer_class = MenuSerializer
+    serializer_class = ResultMenuListSerializer
 
-    def get_object(self):
-        today = datetime.date.today()
-        return self.queryset.get(date=today)
+    def list(self, request, *args, **kwargs):
+        today = timezone.now().date()
+        queryset = self.get_queryset().filter(date=today)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
-class VoteListCreateView(generics.ListCreateAPIView):
+class VoteCreateView(mixins.CreateModelMixin, viewsets.GenericViewSet):
     queryset = Vote.objects.all()
-    serializer_class = VoteSerializer
+    serializer_class = VoteCreateSerializer
+
+    def create(self, request, *args, **kwargs):
+        menu_id = request.data.get('menu_id')
+
+        try:
+            menu = Menu.objects.get(id=menu_id)
+        except ObjectDoesNotExist:
+            return Response({'detail': 'Menu does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+        employee = request.user
+        Vote.objects.create(employee=employee, menu=menu)
+
+        # Increment the vote count for the menu
+        menu.votes = F('votes') + 1
+        menu.save()
+
+        todays_date = menu.created_at.date()
+        qs = Menu.objects.filter(created_at__date=todays_date)
+        serializer = MenuListSerializer(qs, many=True)
+        res = {
+            "msg": 'You voted successfully!',
+            "data": serializer.data,
+            "success": True
+        }
+        return Response(data=res, status=status.HTTP_200_OK)
+
+    def perform_create(self, serializer):
+        print('Creating Vote:', serializer.validated_data)
+
+        super().perform_create(serializer)
+
+        print('Created Vote:', serializer.data)
