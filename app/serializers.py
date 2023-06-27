@@ -68,4 +68,7 @@ class ResultMenuListSerializer(serializers.ModelSerializer):
 
 class VoteCreateSerializer(serializers.Serializer):
     menu_id = serializers.IntegerField()
-    employee = serializers.PrimaryKeyRelatedField(read_only=True, default=serializers.CurrentUserDefault())
+    employee = serializers.PrimaryKeyRelatedField(
+        read_only=True,
+        default=serializers.CurrentUserDefault()
+    )

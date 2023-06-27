@@ -12,8 +12,16 @@ from .views import (
 router = routers.DefaultRouter()
 router.register(r'restaurants', RestaurantViewSet, basename='restaurant')
 router.register(r'menus', MenuViewSet, basename='menu')
-router.register(r'current-day-menu', CurrentDayMenuView, basename='current-day-menu')
-router.register(r'current-day-results', CurrentDayResultsView, basename='current-day-results')
+router.register(
+    r'current-day-menu',
+    CurrentDayMenuView,
+    basename='current-day-menu'
+)
+router.register(
+    r'current-day-results',
+    CurrentDayResultsView,
+    basename='current-day-results'
+)
 router.register(r'vote', VoteCreateView, basename='vote')
 
 urlpatterns = [

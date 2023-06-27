@@ -64,7 +64,10 @@ class VoteCreateView(mixins.CreateModelMixin, viewsets.GenericViewSet):
         try:
             menu = Menu.objects.get(id=menu_id)
         except ObjectDoesNotExist:
-            return Response({'detail': 'Menu does not exist'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'detail': 'Menu does not exist'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         employee = request.user
 
