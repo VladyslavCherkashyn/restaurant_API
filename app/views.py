@@ -3,7 +3,9 @@ from django.db.models import F
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .models import Restaurant, Menu, Vote
@@ -25,10 +27,24 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             return RestaurantListSerializer
         return CreateRestaurantSerializer
 
+    # Adding new method for processing /v2/restaurants/
+    @action(detail=False, methods=['get'], url_path='v2/restaurants')
+    def list_v2(self, request):
+        queryset = self.get_queryset()
+        serializer = CreateRestaurantSerializer(queryset, many=True)
+        return Response(serializer.data)
+
 
 class MenuViewSet(viewsets.ModelViewSet):
     queryset = Menu.objects.all()
     serializer_class = UploadMenuSerializer
+
+    # Adding new method for processing /v2/menus/
+    @action(detail=False, methods=['get'], url_path='v2/menus')
+    def list_v2(self, request):
+        queryset = self.get_queryset()
+        serializer = UploadMenuSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class CurrentDayMenuView(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -39,6 +55,14 @@ class CurrentDayMenuView(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         today = timezone.now().date()
         return get_object_or_404(self.queryset, date=today)
 
+    # Adding new method for processing /v2/current-day-menu/
+    @action(detail=False, methods=['get'], url_path='v2/current-day-menu')
+    def retrieve_v2(self, request):
+        today = timezone.now().date()
+        queryset = self.get_queryset().filter(date=today)
+        serializer = MenuListSerializer(queryset, many=True)
+        return Response(serializer.data)
+
 
 class CurrentDayResultsView(mixins.ListModelMixin, viewsets.GenericViewSet):
     queryset = Menu.objects.all()
@@ -48,6 +72,14 @@ class CurrentDayResultsView(mixins.ListModelMixin, viewsets.GenericViewSet):
         today = timezone.now().date()
         queryset = self.get_queryset().filter(date=today)
         serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    # Adding new method for processing /v2/current-day-results/
+    @action(detail=False, methods=['get'], url_path='v2/current-day-results')
+    def list_v2(self, request):
+        today = timezone.now().date()
+        queryset = self.get_queryset().filter(date=today)
+        serializer = ResultMenuListSerializer(queryset, many=True)
         return Response(serializer.data)
 
 
@@ -102,3 +134,10 @@ class VoteCreateView(mixins.CreateModelMixin, viewsets.GenericViewSet):
             "success": True
         }
         return Response(data=res, status=status.HTTP_200_OK)
+
+    # Reuse the existing create method for the v2 endpoint
+    @action(detail=False, methods=['post'], url_path='v2/vote')
+    def create_v2(self, request):
+        # Create a new Request instance using the original request
+        cloned_request = Request(request._request)
+        return self.create(cloned_request)
